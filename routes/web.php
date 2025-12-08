@@ -1,17 +1,23 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ObservationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
-Route::get('/', function () {
+Route::get('example', function () {
     return Inertia::render('Welcome', [
         'canRegister' => Features::enabled(Features::registration()),
     ]);
-})->name('home');
+})->middleware('auth')->name('home');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::resource('observation', ObservationController::class)
+        ->only(['index', 'store', 'show', 'update'])
+        ->names(['index' => 'observation', 'store' => 'observation.store', 'show' => 'observation.show', 'update' => 'observation.update']);
+});
 
 require __DIR__ . '/settings.php';

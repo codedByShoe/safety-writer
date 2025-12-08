@@ -18,76 +18,72 @@ defineProps<Props>();
         viewBox="0 0 64 64"
         width="64"
         height="64"
-        :class="className"
     >
-        <!-- Shield background - zinc-700 -->
+        <!-- Bold shield outline style -->
         <path
-            d="M32 4 L54 12 L54 28 C54 44 44 54 32 60 C20 54 10 44 10 28 L10 12 Z"
-            fill="#3f3f46"
-            stroke="#27272a"
-            stroke-width="2"
+            d="M32 6 L52 13 L52 28 C52 42 43 52 32 58 C21 52 12 42 12 28 L12 13 Z"
+            fill="none"
+            stroke="#71717a"
+            stroke-width="3"
         />
 
-        <!-- Inner shield highlight - zinc-600 -->
+        <!-- Inner shield fill -->
         <path
-            d="M32 8 L50 15 L50 28 C50 42 41 50 32 55 C23 50 14 42 14 28 L14 15 Z"
-            fill="#52525b"
+            d="M32 10 L48 16 L48 28 C48 40 40 48 32 53 C24 48 16 40 16 28 L16 16 Z"
+            fill="#27272a"
         />
 
-        <!-- Document - zinc-100 -->
+        <!-- Stylized pencil/document combo -->
+        <!-- Pencil body diagonal -->
         <rect
-            x="22"
-            y="16"
-            width="20"
-            height="26"
-            rx="2"
+            x="24"
+            y="20"
+            width="6"
+            height="24"
+            rx="1"
             fill="#f4f4f5"
-            stroke="#e4e4e7"
-            stroke-width="1"
+            transform="rotate(-15 27 32)"
+        />
+        <polygon
+            points="24,44 27,50 30,44"
+            fill="#a1a1aa"
+            transform="rotate(-15 27 32)"
         />
 
-        <!-- Document lines - zinc-300 -->
+        <!-- Writing lines coming from pencil -->
         <line
-            x1="26"
+            x1="30"
             y1="22"
-            x2="38"
+            x2="42"
             y2="22"
-            stroke="#d4d4d8"
+            stroke="#71717a"
             stroke-width="2"
             stroke-linecap="round"
         />
         <line
-            x1="26"
+            x1="32"
             y1="28"
-            x2="38"
+            x2="42"
             y2="28"
-            stroke="#d4d4d8"
+            stroke="#71717a"
             stroke-width="2"
             stroke-linecap="round"
         />
         <line
-            x1="26"
+            x1="34"
             y1="34"
-            x2="34"
+            x2="42"
             y2="34"
-            stroke="#d4d4d8"
+            stroke="#71717a"
             stroke-width="2"
             stroke-linecap="round"
         />
 
-        <!-- Pen/Pencil - zinc-400/zinc-300 -->
-        <g transform="rotate(45 44 38)">
-            <rect x="40" y="24" width="6" height="22" rx="1" fill="#a1a1aa" />
-            <polygon points="40,46 43,52 46,46" fill="#27272a" />
-            <rect x="40" y="24" width="6" height="4" fill="#d4d4d8" />
-        </g>
-
-        <!-- Checkmark accent - zinc-800 with zinc-100 check -->
-        <circle cx="42" cy="18" r="6" fill="#27272a" />
+        <!-- Small check accent -->
         <path
-            d="M39 18 L41 20 L45 15"
+            d="M36 40 L39 43 L45 37"
             stroke="#f4f4f5"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
             fill="none"

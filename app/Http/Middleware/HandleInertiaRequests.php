@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Foundation\Inspiring;
+use App\Models\Observation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,16 +36,25 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
-
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'recentObservations' => $request->user()
+                ? Observation::where('user_id', $request->user()->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get(['id', 'title', 'status', 'created_at'])
+                    ->map(fn ($obs) => [
+                        'id' => $obs->id,
+                        'title' => $obs->title,
+                        'status' => $obs->status,
+                        'timestamp' => $obs->created_at->diffForHumans(),
+                    ])
+                : [],
         ];
     }
 }
