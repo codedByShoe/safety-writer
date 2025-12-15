@@ -10,32 +10,43 @@ class AiService
 {
     public function __construct(private ObservationPrompt $obsPrompt) {}
 
-    protected function call(
-        string $prompt,
-        Provider $provider = Provider::XAI,
-        string $model = 'grok-4-fast-non-reasoning'
-    ) {
-        return Prism::text()
-            ->using($provider, $model)
-            ->withPrompt($prompt)
-            ->withMaxTokens(1000)
-            ->withClientOptions([
-                'timeout' => 120,
-            ]);
-    }
-
-    public function generatateNewObservationText(array $data): string
+    public function generatateNewObservationText(array $data): array
     {
         $prompt = $this->obsPrompt->new($data);
+        $response = Prism::text()
+            ->using(Provider::XAI, 'grok-4-fast-non-reasoning')
+            ->withPrompt($prompt)->asText();
+        $tokensUsed = $this->handleTokens($response);
 
-        return $this->call($prompt)->asText()->text;
+        return [
+            'content' => $response->text,
+            'tokens' => $tokensUsed,
+        ];
     }
 
-    public function generateUpdatedObservationText(string $currentText, string $updateText): string
+    public function generateUpdatedObservationText(string $currentText, string $updateText): array
     {
 
         $prompt = $this->obsPrompt->update($currentText, $updateText);
 
-        return $this->call($prompt)->asText()->text;
+        $response = Prism::text()
+            ->using(Provider::XAI, 'grok-4-fast-non-reasoning')
+            ->withPrompt($prompt)->asText();
+        $tokensUsed = $this->handleTokens($response);
+
+        return [
+            'content' => $response->text,
+            'tokens' => $tokensUsed,
+        ];
+    }
+
+    public function handleTokens($response): int
+    {
+        $promptTokens = $response->usage->promptTokens;
+        $usageTokens = $response->usage->completionTokens;
+
+        $amount = round(($promptTokens + $usageTokens) / 10, -1);
+
+        return $amount;
     }
 }

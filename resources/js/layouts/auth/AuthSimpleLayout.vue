@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { home } from '@/routes';
 import { Link } from '@inertiajs/vue3';
 
@@ -20,11 +19,11 @@ defineProps<{
                         :href="home()"
                         class="flex flex-col items-center gap-2 font-medium"
                     >
-                        <div
-                            class="mb-1 flex h-16 w-16 items-center justify-center rounded-md"
-                        >
-                            <AppLogoIcon
-                                class="size-9 fill-current text-[var(--foreground)] dark:text-white"
+                        <div class="mb-1 flex items-center justify-center">
+                            <img
+                                src="/safety-writer-logo.png"
+                                alt="Safety Writer"
+                                class="h-24 w-auto object-contain"
                             />
                         </div>
                         <span class="sr-only">{{ title }}</span>

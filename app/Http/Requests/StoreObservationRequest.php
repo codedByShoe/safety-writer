@@ -11,7 +11,14 @@ class StoreObservationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        // Check if user has at least 100 credits
+        return $user->creditBalance() >= 100;
     }
 
     /**

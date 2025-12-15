@@ -31,8 +31,8 @@ class DashboardController extends Controller
             ->first();
 
         $totalObservations = $stats->total;
-        $positiveCount     = $stats->positive_count;
-        $deltaCount        = $stats->delta_count;
+        $positiveCount = $stats->positive_count;
+        $deltaCount = $stats->delta_count;
 
         // 1 query for the paginated list
         $observations = $baseQuery
@@ -44,14 +44,15 @@ class DashboardController extends Controller
                     : ($observation->form_data ?? []);
 
                 return [
-                    'id'               => $observation->id,
-                    'title'            => $observation->title,
-                    'status'           => $observation->status,
-                    'type'             => $formData['observationType'] ?? 'unknown',
-                    'created_at'       => $observation->created_at->format('M d, Y'),
+                    'id' => $observation->id,
+                    'title' => $observation->title,
+                    'status' => $observation->status,
+                    'type' => $formData['observationType'] ?? 'unknown',
+                    'created_at' => $observation->created_at->format('M d, Y'),
                     'created_at_human' => $observation->created_at->diffForHumans(),
                 ];
             });
+
         return Inertia::render('Dashboard', [
             'stats' => [
                 'total' => $totalObservations,

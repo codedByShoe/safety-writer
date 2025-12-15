@@ -1,19 +1,27 @@
 <script setup lang="ts">
+import { store } from '@/actions/App/Http/Controllers/ObservationController';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Button from '@/components/ui/button/Button.vue';
-import Input from '@/components/ui/input/Input.vue';
 import InputError from '@/components/ui/input-group/InputError.vue';
+import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import RadioGroup from '@/components/ui/radio-group/RadioGroup.vue';
 import RadioGroupItem from '@/components/ui/radio-group/RadioGroupItem.vue';
 import { Separator } from '@/components/ui/separator';
 import Textarea from '@/components/ui/textarea/Textarea.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { store } from '@/actions/App/Http/Controllers/ObservationController';
 import { observation } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { AlertCircle } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+
+interface Props {
+    credits: number;
+    hasInsufficientCredits: boolean;
+}
+
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -72,6 +80,26 @@ const handleClearForm = () => {
 
                 <!-- Observation Form -->
                 <div class="flex-1 overflow-y-auto p-6">
+                    <!-- Insufficient Credits Alert -->
+                    <div
+                        v-if="hasInsufficientCredits"
+                        class="mx-auto mb-6 max-w-4xl"
+                    >
+                        <Alert variant="destructive">
+                            <AlertCircle class="size-4" />
+                            <AlertTitle>Insufficient Credits</AlertTitle>
+                            <AlertDescription>
+                                You need at least 100 credits to generate a new
+                                observation. You currently have
+                                <span class="font-semibold">{{
+                                    credits.toLocaleString()
+                                }}</span>
+                                credits. Please purchase more credits to
+                                continue.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+
                     <form
                         @submit.prevent="handleSubmit"
                         class="mx-auto max-w-4xl space-y-8"
@@ -94,9 +122,14 @@ const handleClearForm = () => {
                                         id="discipline"
                                         v-model="form.discipline"
                                         placeholder="e.g., Maintenance, Operations"
-                                        :class="{ 'border-destructive': form.errors.discipline }"
+                                        :class="{
+                                            'border-destructive':
+                                                form.errors.discipline,
+                                        }"
                                     />
-                                    <InputError :message="form.errors.discipline" />
+                                    <InputError
+                                        :message="form.errors.discipline"
+                                    />
                                 </div>
 
                                 <div class="space-y-2">
@@ -105,9 +138,14 @@ const handleClearForm = () => {
                                         id="company"
                                         v-model="form.company"
                                         placeholder="Company name"
-                                        :class="{ 'border-destructive': form.errors.company }"
+                                        :class="{
+                                            'border-destructive':
+                                                form.errors.company,
+                                        }"
                                     />
-                                    <InputError :message="form.errors.company" />
+                                    <InputError
+                                        :message="form.errors.company"
+                                    />
                                 </div>
                             </div>
                             <div class="space-y-2">
@@ -116,7 +154,10 @@ const handleClearForm = () => {
                                     id="location"
                                     v-model="form.location"
                                     placeholder="Where did the observation take place?"
-                                    :class="{ 'border-destructive': form.errors.location }"
+                                    :class="{
+                                        'border-destructive':
+                                            form.errors.location,
+                                    }"
                                 />
                                 <InputError :message="form.errors.location" />
                             </div>
@@ -227,7 +268,9 @@ const handleClearForm = () => {
                                     v-model="form.gap"
                                     placeholder="Describe the behavior or standard that was met or not met, and what activity was being performed..."
                                     class="min-h-32"
-                                    :class="{ 'border-destructive': form.errors.gap }"
+                                    :class="{
+                                        'border-destructive': form.errors.gap,
+                                    }"
                                 />
                                 <InputError :message="form.errors.gap" />
                             </div>
@@ -252,7 +295,10 @@ const handleClearForm = () => {
                                     v-model="form.whyDetails"
                                     placeholder="Explain why the behavior or standard was met or not met. What did the individual say when asked?"
                                     class="min-h-32"
-                                    :class="{ 'border-destructive': form.errors.whyDetails }"
+                                    :class="{
+                                        'border-destructive':
+                                            form.errors.whyDetails,
+                                    }"
                                 />
                                 <InputError :message="form.errors.whyDetails" />
                             </div>
@@ -284,15 +330,18 @@ const handleClearForm = () => {
                                     v-model="form.consequence"
                                     placeholder="What are the potential consequences of this behavior or standard not being met?"
                                     class="min-h-24"
-                                    :class="{ 'border-destructive': form.errors.consequence }"
+                                    :class="{
+                                        'border-destructive':
+                                            form.errors.consequence,
+                                    }"
                                 />
-                                <InputError :message="form.errors.consequence" />
+                                <InputError
+                                    :message="form.errors.consequence"
+                                />
                             </div>
                         </div>
 
-                        <Separator
-                            v-if="form.observationType === 'not-met'"
-                        />
+                        <Separator v-if="form.observationType === 'not-met'" />
 
                         <!-- Impactful Action Section -->
                         <div class="space-y-4">
@@ -315,9 +364,14 @@ const handleClearForm = () => {
                                     v-model="form.impactfulAction"
                                     placeholder="Describe the action taken to reinforce good performance or correct performance gaps..."
                                     class="min-h-32"
-                                    :class="{ 'border-destructive': form.errors.impactfulAction }"
+                                    :class="{
+                                        'border-destructive':
+                                            form.errors.impactfulAction,
+                                    }"
                                 />
-                                <InputError :message="form.errors.impactfulAction" />
+                                <InputError
+                                    :message="form.errors.impactfulAction"
+                                />
                             </div>
                         </div>
 
@@ -344,7 +398,10 @@ const handleClearForm = () => {
                                     v-model="form.peerToPeer"
                                     placeholder="Describe peer coaching that occurred or missed opportunities..."
                                     class="min-h-24"
-                                    :class="{ 'border-destructive': form.errors.peerToPeer }"
+                                    :class="{
+                                        'border-destructive':
+                                            form.errors.peerToPeer,
+                                    }"
                                 />
                                 <InputError :message="form.errors.peerToPeer" />
                             </div>
@@ -358,11 +415,18 @@ const handleClearForm = () => {
                                 type="button"
                                 variant="outline"
                                 @click="handleClearForm"
-                                :disabled="form.processing"
+                                :disabled="
+                                    form.processing || hasInsufficientCredits
+                                "
                             >
                                 Clear Form
                             </Button>
-                            <Button type="submit" :disabled="form.processing">
+                            <Button
+                                type="submit"
+                                :disabled="
+                                    form.processing || hasInsufficientCredits
+                                "
+                            >
                                 {{
                                     form.processing
                                         ? 'Generating...'

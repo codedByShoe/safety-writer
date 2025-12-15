@@ -51,7 +51,7 @@ const observations = computed(() => page.props.recentObservations || []);
                         <div class="flex w-full items-center gap-2">
                             <div
                                 :class="[
-                                    'size-2 rounded-full flex-shrink-0',
+                                    'size-2 flex-shrink-0 rounded-full',
                                     obs.status === 'finalized'
                                         ? 'bg-green-500'
                                         : 'bg-gray-400 dark:bg-gray-600',

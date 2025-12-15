@@ -24,7 +24,7 @@ import {
     Loader2,
     X,
 } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 interface Props {
@@ -81,22 +81,56 @@ const formattedObservation = computed(() => {
 // Poll for updates when generating
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let wasGenerating = ref(false);
+let pollStartTime = ref<number | null>(null);
+const MAX_POLL_TIME = 120000; // 2 minutes max polling time
 
 watch(
     isGenerating,
     (generating) => {
         if (generating) {
             wasGenerating.value = true;
+            pollStartTime.value = Date.now();
+
             // Start polling every 2 seconds
             pollInterval = setInterval(() => {
-                router.reload({ only: ['response'] });
-            }, 500);
+                // Check if we've exceeded max polling time
+                if (
+                    pollStartTime.value &&
+                    Date.now() - pollStartTime.value > MAX_POLL_TIME
+                ) {
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    }
+                    toast.error(
+                        'Observation generation is taking longer than expected. Please check back later or contact support.',
+                    );
+                    router.visit(observation().url);
+                    return;
+                }
+
+                router.reload({
+                    only: ['response'],
+                    onError: (errors) => {
+                        // If observation was deleted (404), redirect to observations list
+                        if (pollInterval) {
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+                        }
+                        toast.error(
+                            'Observation generation failed. Please try again.',
+                        );
+                        router.visit(observation().url);
+                    },
+                });
+            }, 2000); // Poll every 2 seconds (reduced from 500ms)
         } else {
             // Stop polling when response is ready
             if (pollInterval) {
                 clearInterval(pollInterval);
                 pollInterval = null;
             }
+            pollStartTime.value = null;
 
             // Show success toast if we just finished generating
             if (wasGenerating.value && props.response) {
@@ -159,7 +193,9 @@ const handleFinalize = () => {
                 toast.success('Observation finalized successfully!');
             },
             onError: () => {
-                toast.error('Failed to finalize observation. Please try again.');
+                toast.error(
+                    'Failed to finalize observation. Please try again.',
+                );
             },
         },
     );

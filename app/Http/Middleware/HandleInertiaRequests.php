@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Observation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -43,18 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'recentObservations' => $request->user()
-                ? Observation::where('user_id', $request->user()->id)
-                    ->orderBy('created_at', 'desc')
-                    ->limit(10)
-                    ->get(['id', 'title', 'status', 'created_at'])
-                    ->map(fn ($obs) => [
-                        'id' => $obs->id,
-                        'title' => $obs->title,
-                        'status' => $obs->status,
-                        'timestamp' => $obs->created_at->diffForHumans(),
-                    ])
-                : [],
+            'recentObservations' => $request->user() ? $request->user()->recentObservations() : [],
         ];
     }
 }

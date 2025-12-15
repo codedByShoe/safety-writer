@@ -3,30 +3,43 @@
 namespace App\Services;
 
 use App\Models\Observation;
+use App\Models\User;
 use App\Services\Ai\AiService;
+use Illuminate\Support\Facades\Log;
 
 class ObservationService
 {
     public function __construct(private AiService $service) {}
 
-    public function new(array $input, int $userId): Observation
+    public function new(array $input, User $user): Observation
     {
-        $observation = $this->create($input, $userId);
+        $observation = $this->create($input, $user->id);
 
-        defer(
-            function () use ($observation, $input) {
+        defer(function () use ($observation, $input, $user) {
+            try {
                 $response = $this->service->generatateNewObservationText($input);
-                $observation->addResponse($response);
+                $user->deductCredits($response['tokens'], ['observation_id' => $observation->id]);
+                $observation->addResponse($response['content']);
+            } catch (\Exception $e) {
+                // Log the error for debugging
+                Log::error('Observation generation failed', [
+                    'observation_id' => $observation->id,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                $observation->delete();
             }
-        );
+        });
 
         return $observation;
     }
 
-    public function update(Observation $observation, string $updateText): Observation
+    public function update(Observation $observation, string $updateText, User $user): Observation
     {
         $response = $this->service->generateUpdatedObservationText($observation->response, $updateText);
-        $observation->addResponse($response);
+        $user->deductCredits($response['tokens'], ['observation_id' => $observation->id]);
+        $observation->addResponse($response['content']);
 
         return $observation;
     }

@@ -12,14 +12,21 @@ use Inertia\Response as InertiaResponse;
 
 class ObservationController extends Controller
 {
-    public function index(): InertiaResponse
+    public function index(Request $request): InertiaResponse
     {
-        return Inertia::render('observations/Index');
+        $user = $request->user();
+        $credits = $user->creditBalance();
+        $hasInsufficientCredits = $credits < 100;
+
+        return Inertia::render('observations/Index', [
+            'credits' => $credits,
+            'hasInsufficientCredits' => $hasInsufficientCredits,
+        ]);
     }
 
     public function store(StoreObservationRequest $request, ObservationService $service): RedirectResponse
     {
-        $observation = $service->new($request->validated(), $request->user()->id);
+        $observation = $service->new($request->validated(), $request->user());
 
         return redirect()->route('observation.show', $observation);
     }
@@ -49,7 +56,7 @@ class ObservationController extends Controller
         if ($request->has('refinement_request')) {
             $refinementRequest = $request->input('refinement_request');
             try {
-                $observation = $service->update($observation, $refinementRequest);
+                $observation = $service->update($observation, $refinementRequest, $request->user());
 
                 return redirect()->route('observation.show', ['observation' => $observation])
                     ->with('success', 'Observation updated successfully.');
@@ -61,5 +68,15 @@ class ObservationController extends Controller
         }
 
         return redirect()->route('observation.show', ['observation' => $observation]);
+    }
+
+    public function destroy(Observation $observation): RedirectResponse
+    {
+        $this->authorize('delete', $observation);
+
+        $observation->delete();
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Observation deleted successfully.');
     }
 }

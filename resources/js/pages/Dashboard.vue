@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { store } from '@/actions/App/Http/Controllers/ObservationController';
-import { show } from '@/actions/App/Http/Controllers/ObservationController';
-import Button from '@/components/ui/button/Button.vue';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+    destroy,
+    show,
+    store,
+} from '@/actions/App/Http/Controllers/ObservationController';
+import Button from '@/components/ui/button/Button.vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -20,9 +26,10 @@ import {
     ClipboardList,
     Coins,
     Plus,
+    Trash2,
     TrendingUp,
 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 interface Observation {
     id: string;
@@ -72,6 +79,8 @@ const deltaPercentage = computed(() => {
     return Math.round((props.stats.delta / props.stats.total) * 100);
 });
 
+const hasInsufficientCredits = computed(() => props.credits < 100);
+
 const handlePagination = (page: number) => {
     router.get(
         dashboard().url,
@@ -102,6 +111,26 @@ const getTypeBadgeClass = (type: string) => {
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
     return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
 };
+
+const deleteDialogOpen = ref(false);
+const observationToDelete = ref<Observation | null>(null);
+
+const openDeleteDialog = (observation: Observation) => {
+    observationToDelete.value = observation;
+    deleteDialogOpen.value = true;
+};
+
+const handleDelete = () => {
+    if (!observationToDelete.value) return;
+
+    router.delete(destroy.url(observationToDelete.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            deleteDialogOpen.value = false;
+            observationToDelete.value = null;
+        },
+    });
+};
 </script>
 
 <template>
@@ -117,43 +146,123 @@ const getTypeBadgeClass = (type: string) => {
                         Overview of your safety observations
                     </p>
                 </div>
-                <Button as-child>
-                    <Link :href="store.form().action" prefetch>
-                        <Plus class="mr-2 size-4" />
-                        New Observation
-                    </Link>
-                </Button>
-            </div>
-
-            <!-- Credits Card - Full Width -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle class="text-sm font-medium">
-                        Available Credits
-                    </CardTitle>
-                    <Coins class="size-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-3xl font-bold text-blue-600">
-                        {{ credits.toLocaleString() }}
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                        Credits available for AI-powered observations
+                <div class="flex flex-col items-end gap-1">
+                    <Button as-child :disabled="hasInsufficientCredits">
+                        <Link
+                            :href="store.form().action"
+                            prefetch
+                            :class="{
+                                'pointer-events-none': hasInsufficientCredits,
+                            }"
+                        >
+                            <Plus class="mr-2 size-4" />
+                            New Observation
+                        </Link>
+                    </Button>
+                    <p
+                        v-if="hasInsufficientCredits"
+                        class="text-xs text-destructive"
+                    >
+                        Insufficient credits (minimum 100 required)
                     </p>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <!-- Credits Card  -->
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Available Credits
+                        </CardTitle>
+                        <Coins class="size-4 text-blue-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold text-foreground">
+                            {{ credits.toLocaleString() }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Credits available for AI-powered observations
+                        </p>
+                    </CardContent>
+                </Card>
+                <!-- Chart Visualization -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <BarChart3 class="size-5" />
+                            Observation Distribution
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-4">
+                            <!-- Positive Bar -->
+                            <div class="space-y-2">
+                                <div
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="font-medium text-green-600">
+                                        Positive (Met)
+                                    </span>
+                                    <span class="text-muted-foreground">
+                                        {{ stats.positive }} ({{
+                                            positivePercentage
+                                        }}%)
+                                    </span>
+                                </div>
+                                <div
+                                    class="h-8 w-full overflow-hidden rounded-full bg-muted"
+                                >
+                                    <div
+                                        class="h-full bg-green-600 transition-all duration-500"
+                                        :style="{
+                                            width: `${positivePercentage}%`,
+                                        }"
+                                    ></div>
+                                </div>
+                            </div>
 
+                            <!-- Delta Bar -->
+                            <div class="space-y-2">
+                                <div
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="font-medium text-orange-600">
+                                        Delta (Not Met)
+                                    </span>
+                                    <span class="text-muted-foreground">
+                                        {{ stats.delta }} ({{
+                                            deltaPercentage
+                                        }}%)
+                                    </span>
+                                </div>
+                                <div
+                                    class="h-8 w-full overflow-hidden rounded-full bg-muted"
+                                >
+                                    <div
+                                        class="h-full bg-orange-600 transition-all duration-500"
+                                        :style="{
+                                            width: `${deltaPercentage}%`,
+                                        }"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
             <!-- Stats Cards -->
             <div class="grid gap-4 md:grid-cols-3">
                 <!-- Total Observations -->
                 <Card>
-                    <CardHeader class="flex flex-row items-center justify-between">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
                         <CardTitle class="text-sm font-medium">
                             Total Observations
                         </CardTitle>
-                        <ClipboardList
-                            class="size-4 text-muted-foreground"
-                        />
+                        <ClipboardList class="size-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold">
@@ -167,7 +276,9 @@ const getTypeBadgeClass = (type: string) => {
 
                 <!-- Positive Observations -->
                 <Card>
-                    <CardHeader class="flex flex-row items-center justify-between">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
                         <CardTitle class="text-sm font-medium">
                             Positive Observations
                         </CardTitle>
@@ -185,7 +296,9 @@ const getTypeBadgeClass = (type: string) => {
 
                 <!-- Delta Observations -->
                 <Card>
-                    <CardHeader class="flex flex-row items-center justify-between">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
                         <CardTitle class="text-sm font-medium">
                             Delta Observations
                         </CardTitle>
@@ -202,64 +315,16 @@ const getTypeBadgeClass = (type: string) => {
                 </Card>
             </div>
 
-            <!-- Chart Visualization -->
-            <Card>
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <BarChart3 class="size-5" />
-                        Observation Distribution
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="space-y-4">
-                        <!-- Positive Bar -->
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="font-medium text-green-600">
-                                    Positive (Met)
-                                </span>
-                                <span class="text-muted-foreground">
-                                    {{ stats.positive }} ({{ positivePercentage }}%)
-                                </span>
-                            </div>
-                            <div class="h-8 w-full overflow-hidden rounded-full bg-muted">
-                                <div
-                                    class="h-full bg-green-600 transition-all duration-500"
-                                    :style="{
-                                        width: `${positivePercentage}%`,
-                                    }"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <!-- Delta Bar -->
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="font-medium text-orange-600">
-                                    Delta (Not Met)
-                                </span>
-                                <span class="text-muted-foreground">
-                                    {{ stats.delta }} ({{ deltaPercentage }}%)
-                                </span>
-                            </div>
-                            <div class="h-8 w-full overflow-hidden rounded-full bg-muted">
-                                <div
-                                    class="h-full bg-orange-600 transition-all duration-500"
-                                    :style="{ width: `${deltaPercentage}%` }"
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
             <!-- Observations Table -->
             <Card>
                 <CardHeader>
                     <CardTitle>Recent Observations</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="observations.data.length === 0" class="py-12 text-center">
+                    <div
+                        v-if="observations.data.length === 0"
+                        class="py-12 text-center"
+                    >
                         <ClipboardList
                             class="mx-auto size-12 text-muted-foreground opacity-50"
                         />
@@ -279,23 +344,37 @@ const getTypeBadgeClass = (type: string) => {
 
                     <div v-else class="space-y-4">
                         <!-- Table -->
-                        <div class="overflow-x-auto rounded-lg border border-sidebar-border/70 dark:border-sidebar-border">
+                        <div
+                            class="overflow-x-auto rounded-lg border border-sidebar-border/70 dark:border-sidebar-border"
+                        >
                             <table class="w-full">
                                 <thead class="bg-muted/50">
-                                    <tr class="border-b border-sidebar-border/70 dark:border-sidebar-border">
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                                    <tr
+                                        class="border-b border-sidebar-border/70 dark:border-sidebar-border"
+                                    >
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-medium text-muted-foreground"
+                                        >
                                             Status
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-medium text-muted-foreground"
+                                        >
                                             Title
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-medium text-muted-foreground"
+                                        >
                                             Type
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-medium text-muted-foreground"
+                                        >
                                             Date
                                         </th>
-                                        <th class="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
+                                        <th
+                                            class="px-4 py-3 text-right text-xs font-medium text-muted-foreground"
+                                        >
                                             Actions
                                         </th>
                                     </tr>
@@ -307,7 +386,9 @@ const getTypeBadgeClass = (type: string) => {
                                         class="border-b border-sidebar-border/70 transition-colors hover:bg-muted/50 dark:border-sidebar-border"
                                     >
                                         <td class="px-4 py-3">
-                                            <div class="flex items-center gap-2">
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
                                                 <div
                                                     :class="[
                                                         'size-2 rounded-full',
@@ -316,7 +397,9 @@ const getTypeBadgeClass = (type: string) => {
                                                         ),
                                                     ]"
                                                 ></div>
-                                                <span class="text-xs capitalize text-muted-foreground">
+                                                <span
+                                                    class="text-xs text-muted-foreground capitalize"
+                                                >
                                                     {{ observation.status }}
                                                 </span>
                                             </div>
@@ -339,30 +422,64 @@ const getTypeBadgeClass = (type: string) => {
                                                     ),
                                                 ]"
                                             >
-                                                {{ getTypeLabel(observation.type) }}
+                                                {{
+                                                    getTypeLabel(
+                                                        observation.type,
+                                                    )
+                                                }}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-muted-foreground">
+                                        <td
+                                            class="px-4 py-3 text-sm text-muted-foreground"
+                                        >
                                             <div class="flex flex-col">
-                                                <span>{{ observation.created_at }}</span>
+                                                <span>{{
+                                                    observation.created_at
+                                                }}</span>
                                                 <span class="text-xs">
-                                                    {{ observation.created_at_human }}
+                                                    {{
+                                                        observation.created_at_human
+                                                    }}
                                                 </span>
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-right">
-                                            <Button
-                                                as-child
-                                                variant="ghost"
-                                                size="sm"
+                                            <div
+                                                class="flex items-center justify-end gap-2"
                                             >
-                                                <Link
-                                                    :href="show.url(observation.id)"
-                                                    prefetch
+                                                <Button
+                                                    as-child
+                                                    variant="ghost"
+                                                    size="sm"
                                                 >
-                                                    View
-                                                </Link>
-                                            </Button>
+                                                    <Link
+                                                        :href="
+                                                            show.url(
+                                                                observation.id,
+                                                            )
+                                                        "
+                                                        prefetch
+                                                    >
+                                                        View
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    @click="
+                                                        openDeleteDialog(
+                                                            observation,
+                                                        )
+                                                    "
+                                                >
+                                                    <Trash2
+                                                        class="size-4 text-destructive"
+                                                    />
+                                                    <span class="sr-only"
+                                                        >Delete</span
+                                                    >
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -376,11 +493,17 @@ const getTypeBadgeClass = (type: string) => {
                         >
                             <div class="text-sm text-muted-foreground">
                                 Showing
-                                <span class="font-medium">{{ observations.from }}</span>
+                                <span class="font-medium">{{
+                                    observations.from
+                                }}</span>
                                 to
-                                <span class="font-medium">{{ observations.to }}</span>
+                                <span class="font-medium">{{
+                                    observations.to
+                                }}</span>
                                 of
-                                <span class="font-medium">{{ observations.total }}</span>
+                                <span class="font-medium">{{
+                                    observations.total
+                                }}</span>
                                 results
                             </div>
                             <div class="flex items-center gap-2">
@@ -388,7 +511,11 @@ const getTypeBadgeClass = (type: string) => {
                                     variant="outline"
                                     size="sm"
                                     :disabled="observations.current_page === 1"
-                                    @click="handlePagination(observations.current_page - 1)"
+                                    @click="
+                                        handlePagination(
+                                            observations.current_page - 1,
+                                        )
+                                    "
                                 >
                                     <ChevronLeft class="size-4" />
                                     Previous
@@ -402,8 +529,15 @@ const getTypeBadgeClass = (type: string) => {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    :disabled="observations.current_page === observations.last_page"
-                                    @click="handlePagination(observations.current_page + 1)"
+                                    :disabled="
+                                        observations.current_page ===
+                                        observations.last_page
+                                    "
+                                    @click="
+                                        handlePagination(
+                                            observations.current_page + 1,
+                                        )
+                                    "
                                 >
                                     Next
                                     <ChevronRight class="size-4" />
@@ -414,5 +548,27 @@ const getTypeBadgeClass = (type: string) => {
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Delete Confirmation Dialog -->
+        <Dialog v-model:open="deleteDialogOpen">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Delete Observation</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to delete "{{
+                            observationToDelete?.title
+                        }}"? This action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" @click="deleteDialogOpen = false">
+                        Cancel
+                    </Button>
+                    <Button variant="destructive" @click="handleDelete">
+                        Delete
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

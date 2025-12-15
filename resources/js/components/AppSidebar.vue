@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ConversationGroups from '@/components/ConversationGroups.vue';
+import MainNavigation from '@/components/MainNavigation.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
     Sidebar,
@@ -30,6 +31,7 @@ import AppLogo from './AppLogo.vue';
         </SidebarHeader>
 
         <SidebarContent>
+            <MainNavigation />
             <ConversationGroups />
         </SidebarContent>
 

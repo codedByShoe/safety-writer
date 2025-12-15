@@ -12,10 +12,13 @@
         "php": "^8.2",
         "climactic/laravel-credits": "^1.3",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel/cashier": "^16.1",
         "laravel/fortify": "^1.30",
         "laravel/framework": "^12.0",
+        "laravel/octane": "^2.13",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
+        "nunomaduro/laravel-optimize-database": "^1.0",
         "prism-php/prism": "^0.98.5"
     },
     "require-dev": {

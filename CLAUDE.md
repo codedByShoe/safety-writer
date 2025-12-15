@@ -1,3 +1,197 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Application Overview
+
+Safety Writer is a Laravel 12 + Inertia.js + Vue 3 application for generating professional safety observation reports using AI. Users fill out observation forms, and the system generates formatted reports using XAI's Grok API via the Prism PHP library. The application includes a credit system to track AI token usage.
+
+## Development Commands
+
+### Setup
+```bash
+composer setup  # Full setup: dependencies, .env, key generation, migrations, npm install & build
+```
+
+### Development Server
+```bash
+composer run dev  # Runs concurrently: artisan serve, queue:listen, pail (logs), npm run dev
+composer run dev:ssr  # Same as above but with Inertia SSR
+```
+
+### Testing
+```bash
+composer test  # Clears config and runs all tests
+php artisan test  # Run all tests
+php artisan test tests/Feature/ExampleTest.php  # Run specific test file
+php artisan test --filter=testName  # Run specific test by name
+```
+
+### Code Quality
+```bash
+vendor/bin/pint  # Auto-fix PHP formatting issues
+vendor/bin/pint --dirty  # Format only modified files
+npm run lint  # Auto-fix JavaScript/Vue linting issues
+npm run format  # Format JS/Vue files with Prettier
+npm run format:check  # Check formatting without modifying
+```
+
+### Frontend Build
+```bash
+npm run dev  # Vite dev server with hot reload
+npm run build  # Production build
+npm run build:ssr  # Production build with SSR support
+```
+
+## Architecture & Key Concepts
+
+### AI Service Architecture
+
+The application uses a service-based architecture for AI interactions:
+
+1. **ObservationService** (`app/Services/ObservationService.php`) - High-level business logic
+   - Orchestrates observation creation and updates
+   - Uses `defer()` for async AI generation to avoid blocking responses
+   - Manages credit deduction via User model
+
+2. **AiService** (`app/Services/Ai/AiService.php`) - AI provider integration
+   - Wraps Prism library for XAI/Grok API calls
+   - Uses `grok-4-fast-non-reasoning` model
+   - Calculates token usage: `round((promptTokens + completionTokens) / 10, -1)`
+
+3. **ObservationPrompt** (`app/Services/Ai/Prompts/ObservationPrompt.php`) - Prompt management
+   - `new()` - Generates initial observation from form data
+   - `update()` - Modifies existing observations based on user feedback
+   - Contains detailed safety observation format guidelines and examples
+
+### Credits System
+
+Uses `climactic/laravel-credits` package via `HasCredits` trait on User model. Credits are deducted based on AI token usage:
+- Tokens are calculated in `AiService::handleTokens()`
+- Deduction happens via `User::deductCredits()` with metadata linking to observations
+
+### Payment & Stripe Integration
+
+The application uses Laravel Cashier to handle credit purchases via Stripe:
+
+1. **CheckoutController** (`app/Http/Controllers/CheckoutController.php`) - Handles payment flow
+   - `index()` - Displays available credit packages
+   - `create()` - Creates Stripe checkout session and redirects to Stripe
+   - `success()` - Handles return from successful payment
+   - `webhook()` - Processes Stripe webhooks to add credits after payment
+
+2. **Credit Packages** - Three tiers available:
+   - Starter: 1,000 credits for $5.99
+   - Popular: 5,000 credits for $24.99 (17% discount)
+   - Pro: 10,000 credits for $44.99 (25% discount)
+
+3. **Payment Flow**:
+   - User selects package → redirected to Stripe Checkout
+   - After payment → Stripe webhook triggers `checkout.session.completed`
+   - Credits automatically added via `User::creditAdd()` with metadata
+   - User sees success message and updated credit balance
+
+4. **Important Notes**:
+   - Webhook route (`stripe/webhook`) is excluded from CSRF verification in `bootstrap/app.php`
+   - Requires `STRIPE_KEY`, `STRIPE_SECRET`, and `STRIPE_WEBHOOK_SECRET` in `.env`
+   - User model uses Laravel Cashier's `Billable` trait
+   - Credits are tracked with metadata including `stripe_session_id` and `package`
+
+### Observation Workflow
+
+1. User submits form → `ObservationController@store`
+2. Creates `Observation` with `status='draft'` and `response=null`
+3. Returns immediately to user (non-blocking)
+4. Background: AI generates formatted report via deferred function
+5. Credits deducted, observation response updated
+6. User can view and request updates via `ObservationController@update`
+
+### Models & Key Features
+
+**Observation** (`app/Models/Observation.php`)
+- Uses UUID primary key (string, non-incrementing)
+- Stores `form_data` as JSON array
+- Tracks `status` (draft/finalized)
+- Methods: `finalize()`, `addResponse()`
+
+**User** (`app/Models/User.php`)
+- Uses Fortify's `TwoFactorAuthenticatable`
+- Has `HasCredits` trait for credit tracking
+- Custom `deductCredits()` method for observation-specific credit tracking
+
+### Frontend Structure
+
+- **Pages**: `resources/js/pages/` (lowercase directory name, note this differs from typical Laravel convention)
+  - Auth pages: `auth/`
+  - Dashboard: `Dashboard.vue`
+  - Observations: `observations/`
+  - Settings: `settings/`
+
+- **Components**: `resources/js/components/`
+  - UI components use Reka UI (headless component library) in `components/ui/`
+  - Application components (AppShell, AppSidebar, etc.)
+  - Uses `lucide-vue-next` for icons via custom `Icon.vue` wrapper
+
+- **Layouts**: `resources/js/layouts/` - Shared layout components
+
+- **Wayfinder Integration**:
+  - Type-safe route generation configured in `vite.config.ts`
+  - Generated routes in `resources/js/actions/` and `resources/js/routes/` (git-ignored)
+  - These directories are auto-generated - never manually edit them
+
+### Inertia Shared Data
+
+`HandleInertiaRequests` middleware shares:
+- `auth.user` - Current authenticated user
+- `sidebarOpen` - Sidebar state from cookie
+- `recentObservations` - Last 10 user observations (id, title, status, timestamp)
+
+### Styling
+
+- Tailwind CSS v4 configured via `@tailwindcss/vite`
+- Configuration is CSS-first (no separate config file needed)
+- Dark mode support via `HandleAppearance` middleware (stores preference in cookie)
+- Uses `class-variance-authority` (cva) and `tailwind-merge` for component variants
+
+### Database
+
+- Default: SQLite (`database/database.sqlite`)
+- Queue/cache also use database driver
+- Key tables: `users`, `observations`, `credits`, `cache`, `jobs`
+
+### Important Conventions
+
+1. **Vue Pages Location**: Pages are in `resources/js/pages/` (lowercase) - this is configured in `app.ts` via `resolvePageComponent('./pages/${name}.vue')`
+
+2. **Deferred Processing**: AI generation uses `defer()` to avoid blocking. Always check if operations should be deferred for better UX.
+
+3. **Form Requests**: Validation is in dedicated Form Request classes (e.g., `StoreObservationRequest.php`)
+
+4. **Testing**: All feature tests use Pest syntax. Tests should cover happy paths, failure paths, and edge cases.
+
+5. **No Middleware Directory**: Laravel 12 structure - middleware registered in `bootstrap/app.php`, not `app/Http/Middleware/Kernel.php`
+
+6. **Credit Tracking**: Always include relevant metadata when deducting credits for audit trails.
+
+## Environment Variables
+
+Key environment variables beyond standard Laravel:
+- XAI/Grok API credentials (required for AI service)
+- Stripe configuration (required for payments):
+  - `STRIPE_KEY` - Stripe publishable key
+  - `STRIPE_SECRET` - Stripe secret key
+  - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+
+## Common Pitfalls
+
+1. **Don't block on AI generation**: Use `defer()` for AI calls to keep response times fast
+2. **UUID primary keys**: Observations use UUID strings, not auto-incrementing integers
+3. **Wayfinder generated files**: Never commit or manually edit `resources/js/actions/` or `resources/js/routes/`
+4. **Pages directory**: It's lowercase `pages/`, not `Pages/`
+5. **Token calculation**: The credit amount is calculated as `round((tokens) / 10, -1)` - ensure this logic is maintained if modifying AI service
+
+===
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -8,10 +202,12 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 ## Foundational Context
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
-- php - 8.5.0
+- php - 8.4.15
 - inertiajs/inertia-laravel (INERTIA) - v2
+- laravel/cashier (CASHIER) - v16
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v12
+- laravel/octane (OCTANE) - v2
 - laravel/prompts (PROMPTS) - v0
 - laravel/wayfinder (WAYFINDER) - v0
 - laravel/mcp (MCP) - v0
